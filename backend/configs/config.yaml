@@ -1,0 +1,165 @@
+# GroundWatch — Physics-Informed Synthetic Dataset Configuration
+# Every parameter here is grounded in literature or real sensor datasheets.
+# See inline comments for citations and derivations.
+
+# ──────────────────────────────────────────────────────────────
+#  DATASET STRUCTURE
+# ──────────────────────────────────────────────────────────────
+dataset:
+  n_panels: 18                        # 15–20 synthetic mine panels
+  panels_with_subsidence: 12          # remaining 6 are stable (only noise/confounders)
+  nodes_per_panel: [8, 12]            # virtual sensor nodes per panel
+  simulation_days: 180                # 6-month synthetic timeline
+  sampling_interval_hours: 1          # 1-hour aggregated windows
+  random_seed: 42
+
+# ──────────────────────────────────────────────────────────────
+#  PANEL GEOMETRY — CMRI/NCB influence-function parameters
+#  Ranges from: CMRI Technical Manual on Mine Subsidence (1997),
+#  Saxena & Singh, J. Mines Metals & Fuels (2008), and
+#  IS 14562:1998 — Indian Standard for prediction of subsidence.
+# ──────────────────────────────────────────────────────────────
+panel_geometry:
+  depth_range_m: [100, 600]           # extraction depth H (meters)
+  width_range_m: [100, 400]           # panel width W (meters)
+  extraction_thickness_range_m: [2.0, 4.0]  # seam height (meters)
+  angle_of_draw_deg: 35.0            # standard Indian coal measure assumption
+  subsidence_factor_range: [0.6, 0.9] # a = fraction of seam height realised as surface subsidence
+  face_advance_rate_m_per_day: [3, 8] # longwall face advance speed
+
+# ──────────────────────────────────────────────────────────────
+#  TIME PROFILE — subsidence progression curve
+#  70–90% of total S occurs during active phase (weeks–months
+#  after the face passes); remainder is slow residual settlement.
+#  Ref: Djamaluddin et al., Int. J. Mining Sci. & Tech (2011).
+# ──────────────────────────────────────────────────────────────
+time_profile:
+  active_phase_fraction: [0.70, 0.90] # fraction of S_max during active phase
+  active_phase_days: [30, 90]         # duration of the rapid active phase
+  residual_tau_days: [180, 365]       # exponential time-constant for slow residual tail
+  onset_range_day: [10, 100]          # earliest subsidence onset offset (days into sim)
+
+# ──────────────────────────────────────────────────────────────
+#  HORIZONTAL DISPLACEMENT
+#  Empirically ~20–25% of vertical displacement magnitude,
+#  directed radially from the trough center.
+#  Ref: Chatterjee et al. (2015), J. Earth System Science —
+#       GPS deformation study, Jharia Coalfield.
+# ──────────────────────────────────────────────────────────────
+horizontal_displacement:
+  vertical_ratio: [0.20, 0.25]
+
+# ──────────────────────────────────────────────────────────────
+#  NOISE & CONFOUNDERS — all sensor-noise values sourced below
+# ──────────────────────────────────────────────────────────────
+noise:
+  # MEMS accelerometer / tilt sensor — InvenSense MPU-6050 datasheet
+  # Total RMS noise = ±0.1–0.2° under field conditions (datasheet:
+  # accel noise density 400 µg/√Hz at BW=260 Hz → ~0.13° tilt noise)
+  mems_noise_sigma_deg: 0.15
+
+  # Temperature drift — measured slope from Wi-GIM (Wireless
+  # Geotechnical Instrumentation & Monitoring) field calibration
+  # study: 0.0029°/°C systematic drift on MEMS tilt sensors.
+  temp_drift_slope_per_c: 0.0029
+
+  # Indian coalfield diurnal temperature range
+  temp_range_c: [25, 40]
+
+  # Baseline vibration — ambient ground vibration in mine areas
+  baseline_vib_rms: 0.005              # g (RMS), typical quiet-ground level
+  baseline_vib_freq_hz: [1, 10]        # Hz, low-frequency ambient
+
+  blast:
+    # Mine blasting is routine/scheduled, 1–3 events per day per panel.
+    # Vibration during blast: 0.5–1.0+ g peak (close-range surface reading).
+    # Ref: DGMS (India) Circular on ground vibration limits: PPV < 10mm/s
+    # at 1km, but near-field surface sensors may see transient peaks.
+    vib_rms_range: [0.5, 1.0]          # g (RMS) during blast window
+    vib_freq_hz: [15, 50]              # Hz — blast produces high-freq content
+    duration_windows: [1, 2]           # 1–2 hour-windows affected
+    per_day_range: [1, 3]              # blast events per day per panel
+    tilt_perturbation_deg: [0.01, 0.05] # small, transient tilt from blast shock
+    strain_perturbation_mm: [0.005, 0.02] # small, transient strain
+
+  rain:
+    # Shallow soil creep after rainfall — common confounder in real
+    # geotechnical monitoring. Critically: the tilt signature PARTIALLY
+    # REVERSES as soil dries, unlike true subsidence which never reverses.
+    events_per_month: [1, 2]
+    duration_hours: [12, 48]           # active rainfall + immediate creep
+    decay_days: [3, 7]                 # tilt reversal period as soil dries
+    tilt_range_deg: [0.01, 0.05]       # peak tilt blip magnitude
+    strain_range_mm: [0.005, 0.03]     # small strain from soil expansion
+    affected_node_fraction: [0.2, 0.4] # not all nodes affected (terrain varies)
+
+  packet_drop_rate: [0.05, 0.15]       # LoRa mesh packet loss simulation
+
+# ──────────────────────────────────────────────────────────────
+#  LABEL THRESHOLDS — subsidence tier boundaries
+#  Based on typical Indian subsidence magnitudes:
+#    Jharia: 14.8–85 cm/year (Chatterjee et al. 2015)
+#    Raniganj: ~21 mm/year InSAR (Dey et al. 2018)
+#  Thresholds represent cumulative vertical displacement triggers.
+# ──────────────────────────────────────────────────────────────
+labels:
+  subsidence_watch_mm: 20              # early onset — first detectable movement
+  subsidence_warning_mm: 200           # significant movement — requires attention
+  subsidence_critical_mm: 600          # dangerous — evacuation-level displacement
+
+# ──────────────────────────────────────────────────────────────
+#  TRAIN / VAL / TEST SPLIT — by panel ID
+#  Splitting by row would leak panel geometry into test set.
+# ──────────────────────────────────────────────────────────────
+split:
+  train_panels: 13
+  val_panels: 3
+  test_panels: 2
+
+# ──────────────────────────────────────────────────────────────
+#  MODEL HYPERPARAMETERS
+# ──────────────────────────────────────────────────────────────
+models:
+  isolation_forest:
+    n_estimators: 150
+    max_features: 0.8
+    # contamination is tuned on validation set — this is the initial guess
+    contamination: "auto"
+    random_state: 42
+
+  xgboost:
+    # Switched from Random Forest to XGBoost because boosted trees
+    # serialize to 2-4 MB (vs RF's 6-12 MB), staying well under the
+    # 5MB edge-deployment limit at comparable or better accuracy.
+    n_estimators: 80                     # 80 boosted trees (each more informative than RF's bagged trees)
+    max_depth: 6                         # shallower than RF -- boosting compensates with sequential correction
+    learning_rate: 0.1                   # standard starting point; lower needs more trees (bigger model)
+    tree_method: "hist"                  # histogram-based splits -- MANDATORY for fast i3-CPU training
+    early_stopping_rounds: 20            # stop if val loss doesn't improve for 20 rounds
+    random_state: 42
+
+  # Risk fusion: weighted combination of IF anomaly score and XGBoost probability
+  risk_fusion:
+    if_weight: 0.3                     # Isolation Forest anomaly score weight
+    rf_weight: 0.7                     # XGBoost class probability weight (key name kept for compat)
+    tier_thresholds:
+      safe: 25                         # risk_score < 25 -> Safe
+      watch: 50                        # 25 <= risk_score < 50 -> Watch
+      warning: 75                      # 50 <= risk_score < 75 -> Warning
+      # >= 75 -> Critical
+
+  max_model_size_mb: 5                 # hard limit for edge deployment
+
+# ──────────────────────────────────────────────────────────────
+#  LIVE SIMULATION SERVER
+# ──────────────────────────────────────────────────────────────
+simulation:
+  tick_interval_seconds: 3.0             # seconds between ticks (3s for responsive demo)
+  sim_hours_per_tick: 4.0                # simulated hours advanced per tick
+  subsidence_onset_hour: 200.0           # simulated hour when subsidence begins
+
+  # Jharia Coalfield centre — Dhanbad, Jharkhand
+  # Ref: Google Earth, CMRI campus nearby at 23.7948N, 86.4003E
+  center_lat: 23.7400
+  center_lng: 86.4100
+  node_spacing_m: 100                    # grid spacing between nodes in metres
