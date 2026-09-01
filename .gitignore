@@ -1,1 +1,54 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+.venv/
+venv/
+env/
+
+# ===== Trained models & serialized objects =====
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# ===== Data (raw CSVs, processed parquets, labels) =====
+backend/data/
+
+# ===== Generated evaluation artifacts =====
+backend/models/*.png
+
+# ===== Node / Frontend =====
 node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+package-lock.json
+
+# ===== Logs =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ===== OS & Editor =====
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===== Misc =====
+.env
+.env.*
