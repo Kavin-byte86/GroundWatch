@@ -193,6 +193,114 @@ def compute_crack_proxy_feature(df):
 
 
 # ──────────────────────────────────────────────────────────────
+#  6.  TILT REVERSAL INDEX  (NEW — key rain_creep discriminator)
+# ──────────────────────────────────────────────────────────────
+
+def compute_tilt_reversal_features(df):
+    """Compute tilt reversal index and multi-day rolling features.
+
+    Rain creep's defining characteristic is that tilt REVERSES over days
+    as soil dries. True subsidence tilt NEVER reverses — it only
+    increases monotonically. This feature captures that difference.
+
+    Features:
+        tilt_reversal_72h:   ratio of recent 72h change to total 168h change.
+                             Rain → negative (reversal), subsidence → positive.
+        tilt_mean_72h:       rolling mean over 3-day window.
+        tilt_std_72h:        rolling std over 3-day window.
+        tilt_mean_168h:      rolling mean over 7-day window.
+        tilt_std_168h:       rolling std over 7-day window.
+        tilt_delta_72h:      absolute 3-day tilt change.
+        tilt_monotonicity:   fraction of consecutive hours with increasing tilt
+                             over a 168h window.  Subsidence → ~0.7–0.9,
+                             rain creep → ~0.4–0.5, normal → ~0.5.
+    """
+    out = pd.DataFrame(index=df.index)
+    tilt = df["tilt_deg"].astype(float)
+
+    # --- Multi-day rolling statistics ---
+    out["tilt_mean_72h"] = tilt.rolling(72, min_periods=1).mean()
+    out["tilt_std_72h"] = tilt.rolling(72, min_periods=1).std().fillna(0)
+    out["tilt_mean_168h"] = tilt.rolling(168, min_periods=1).mean()
+    out["tilt_std_168h"] = tilt.rolling(168, min_periods=1).std().fillna(0)
+
+    # --- Tilt reversal index ---
+    # Compare recent change (last 72h) vs longer-term change (last 168h).
+    # If tilt went up and then came back down (rain), the 72h delta will
+    # be negative while the 168h delta may still be positive → ratio < 0.
+    # Subsidence: both deltas positive, ratio > 0.
+    delta_72h = tilt.diff(periods=72).fillna(0)
+    delta_168h = tilt.diff(periods=168).fillna(0)
+    out["tilt_reversal_72h"] = delta_72h / (delta_168h.abs() + 1e-6)
+
+    # Absolute 3-day tilt change (magnitude of recent movement)
+    out["tilt_delta_72h"] = delta_72h.abs()
+
+    # --- Tilt monotonicity ---
+    # Fraction of hourly diffs that are positive over a 168h window.
+    diffs = tilt.diff().fillna(0)
+    out["tilt_monotonicity"] = diffs.rolling(168, min_periods=24).apply(
+        lambda x: (x > 0).mean(), raw=True
+    ).fillna(0.5)
+
+    return out
+
+
+# ──────────────────────────────────────────────────────────────
+#  7.  VIBRATION PERSISTENCE  (NEW — blast vs sustained events)
+# ──────────────────────────────────────────────────────────────
+
+def compute_vibration_persistence(df):
+    """Compute features that distinguish transient blasts from sustained vibration.
+
+    Blast vibration is transient (1–2 windows), while other vibration
+    sources are more persistent. These features help separate the two.
+
+    Features:
+        vib_rms_mean_24h:     24-hour rolling mean of vibration RMS.
+        vib_elevated_hours:   rolling count of hours in the last 24 where
+                              vib_rms exceeds the baseline by 5×.
+    """
+    out = pd.DataFrame(index=df.index)
+    vib = df["vib_rms"].astype(float)
+
+    out["vib_rms_mean_24h"] = vib.rolling(24, min_periods=1).mean()
+
+    # Count elevated-vibration hours in the last 24 hours.
+    # Baseline is ~0.005 g; anything above 0.025 g (5×) is "elevated".
+    elevated = (vib > 0.025).astype(float)
+    out["vib_elevated_hours"] = elevated.rolling(24, min_periods=1).sum()
+
+    return out
+
+
+# ──────────────────────────────────────────────────────────────
+#  8.  STRAIN REVERSAL  (NEW — mirrors tilt reversal for strain)
+# ──────────────────────────────────────────────────────────────
+
+def compute_strain_reversal_features(df):
+    """Compute strain reversal and multi-day strain rate features.
+
+    Same logic as tilt reversal: rain-induced strain partially reverses
+    as soil dries, while subsidence strain monotonically accumulates.
+
+    Features:
+        strain_rate_24h:      24-hour strain rate of change.
+        strain_reversal_72h:  ratio of recent 72h strain change to 168h change.
+    """
+    out = pd.DataFrame(index=df.index)
+    strain = df["strain_mm"].astype(float)
+
+    out["strain_rate_24h"] = strain.diff(periods=24).fillna(0)
+
+    delta_72h = strain.diff(periods=72).fillna(0)
+    delta_168h = strain.diff(periods=168).fillna(0)
+    out["strain_reversal_72h"] = delta_72h / (delta_168h.abs() + 1e-6)
+
+    return out
+
+
+# ──────────────────────────────────────────────────────────────
 #  MASTER FEATURE BUILDER
 # ──────────────────────────────────────────────────────────────
 
@@ -213,11 +321,16 @@ def build_features_for_node(df, cross_node_corr=None):
         if col in df.columns:
             feat[col] = df[col].values
 
-    # Feature groups
+    # Original feature groups
     feat = pd.concat([feat, compute_tilt_features(df)], axis=1)
     feat = pd.concat([feat, compute_vibration_features(df)], axis=1)
     feat = pd.concat([feat, compute_strain_features(df)], axis=1)
     feat = pd.concat([feat, compute_crack_proxy_feature(df)], axis=1)
+
+    # NEW feature groups (rain_creep discrimination + blast persistence)
+    feat = pd.concat([feat, compute_tilt_reversal_features(df)], axis=1)
+    feat = pd.concat([feat, compute_vibration_persistence(df)], axis=1)
+    feat = pd.concat([feat, compute_strain_reversal_features(df)], axis=1)
 
     # Cross-node correlation (if provided)
     if cross_node_corr is not None:

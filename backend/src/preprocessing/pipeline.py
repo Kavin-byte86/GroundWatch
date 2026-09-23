@@ -42,12 +42,26 @@ def load_config():
 
 # Feature columns used by the ML models (excludes metadata)
 FEATURE_COLS = [
+    # Original tilt features
     "tilt_current", "tilt_rate_1h",
     "tilt_mean_6h", "tilt_std_6h",
     "tilt_mean_24h", "tilt_std_24h",
+    # Original vibration features
     "vib_rms", "vib_peak", "vib_dom_freq", "vib_spectral_ratio",
+    # Original strain features
     "strain_current", "strain_rate_1h", "strain_cumulative",
+    # Original crack proxy features
     "crack_proxy_current", "crack_proxy_cumulative",
+    # NEW: Tilt reversal & multi-day features (rain_creep discriminators)
+    "tilt_mean_72h", "tilt_std_72h",
+    "tilt_mean_168h", "tilt_std_168h",
+    "tilt_reversal_72h", "tilt_delta_72h",
+    "tilt_monotonicity",
+    # NEW: Vibration persistence (blast vs sustained)
+    "vib_rms_mean_24h", "vib_elevated_hours",
+    # NEW: Strain reversal (rain_creep discrimination)
+    "strain_rate_24h", "strain_reversal_72h",
+    # Cross-node and environment
     "cross_node_corr",
     "temp_c",
 ]
@@ -83,8 +97,10 @@ def process_panel(panel_dir, panel_id, cfg):
         return pd.DataFrame()
 
     # Compute cross-node correlation (requires all nodes in the panel)
+    # Window increased from 24 to 72 hours to better capture sustained
+    # spatial coherence patterns (subsidence = coherent, rain = patchy)
     cross_corrs = compute_cross_node_correlation(
-        filtered_dfs, node_ids[:len(filtered_dfs)], window_size=24
+        filtered_dfs, node_ids[:len(filtered_dfs)], window_size=72
     )
 
     # Build features for each node
