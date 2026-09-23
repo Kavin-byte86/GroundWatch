@@ -69,7 +69,6 @@ class XGBoostModel:
 
     def __init__(self, n_estimators=80, max_depth=6, learning_rate=0.1,
                  tree_method="hist", early_stopping_rounds=20,
-                 subsample=1.0, colsample_bytree=1.0, min_child_weight=1,
                  random_state=42):
         """
         Hyperparameter rationale:
@@ -88,12 +87,6 @@ class XGBoostModel:
             early_stopping_rounds=20: stop if validation loss doesn't
                 improve for 20 rounds -- prevents wasted training time
                 on the i3 CPU and acts as implicit regularization.
-            subsample: fraction of training rows per tree (stochastic
-                gradient boosting). Values < 1.0 add diversity.
-            colsample_bytree: fraction of features per tree. Values < 1.0
-                reduce feature correlation between trees.
-            min_child_weight: minimum sum of instance weight in a child.
-                Higher values prevent splits on very small sample groups.
         """
         self._label_encoder = LabelEncoder()
         self._early_stopping_rounds = early_stopping_rounds
@@ -105,9 +98,6 @@ class XGBoostModel:
             objective="multi:softprob",
             eval_metric="mlogloss",
             use_label_encoder=False,
-            subsample=subsample,
-            colsample_bytree=colsample_bytree,
-            min_child_weight=min_child_weight,
             random_state=random_state,
             n_jobs=-1,
             verbosity=0,  # suppress XGBoost's own logging

@@ -86,17 +86,12 @@ noise:
     # Shallow soil creep after rainfall — common confounder in real
     # geotechnical monitoring. Critically: the tilt signature PARTIALLY
     # REVERSES as soil dries, unlike true subsidence which never reverses.
-    # INCREASED: events_per_month raised 3x and affected_node_fraction
-    # widened to produce more physics-consistent rain_creep training
-    # windows. This is preferable to SMOTE because physically-coupled
-    # features (vib_rms, cross_node_corr, strain) cannot be safely
-    # interpolated — more real synthetic events = stronger valid signal.
-    events_per_month: [3, 5]           # was [1,2] — ~3x more rain events per panel
-    duration_hours: [12, 48]           # active rainfall + immediate creep (unchanged)
-    decay_days: [3, 7]                 # tilt reversal period as soil dries (unchanged)
-    tilt_range_deg: [0.01, 0.08]       # was [0.01,0.05] — wider range for event variety
-    strain_range_mm: [0.005, 0.05]     # was [0.005,0.03] — wider range
-    affected_node_fraction: [0.4, 0.7] # was [0.2,0.4] — more nodes hit per event
+    events_per_month: [1, 2]
+    duration_hours: [12, 48]           # active rainfall + immediate creep
+    decay_days: [3, 7]                 # tilt reversal period as soil dries
+    tilt_range_deg: [0.01, 0.05]       # peak tilt blip magnitude
+    strain_range_mm: [0.005, 0.03]     # small strain from soil expansion
+    affected_node_fraction: [0.2, 0.4] # not all nodes affected (terrain varies)
 
   packet_drop_rate: [0.05, 0.15]       # LoRa mesh packet loss simulation
 
@@ -136,16 +131,11 @@ models:
     # Switched from Random Forest to XGBoost because boosted trees
     # serialize to 2-4 MB (vs RF's 6-12 MB), staying well under the
     # 5MB edge-deployment limit at comparable or better accuracy.
-    # TUNED: increased capacity (150 trees, depth 8) with lower
-    # learning rate (0.05) and sampling-based regularization.
-    n_estimators: 140                    # 140 boosted trees — slightly more capacity for richer rain data
-    max_depth: 8                         # deeper trees to capture rain_creep subtlety (was 6)
-    learning_rate: 0.05                  # lower rate + more trees for better generalization (was 0.1)
+    n_estimators: 80                     # 80 boosted trees (each more informative than RF's bagged trees)
+    max_depth: 6                         # shallower than RF -- boosting compensates with sequential correction
+    learning_rate: 0.1                   # standard starting point; lower needs more trees (bigger model)
     tree_method: "hist"                  # histogram-based splits -- MANDATORY for fast i3-CPU training
-    early_stopping_rounds: 25            # stop if val loss doesn't improve for 25 rounds (was 20)
-    subsample: 0.8                       # row sampling for diversity (NEW)
-    colsample_bytree: 0.8               # column sampling for diversity (NEW)
-    min_child_weight: 5                  # regularization to prevent overfitting to noise (NEW)
+    early_stopping_rounds: 20            # stop if val loss doesn't improve for 20 rounds
     random_state: 42
 
   # Risk fusion: weighted combination of IF anomaly score and XGBoost probability

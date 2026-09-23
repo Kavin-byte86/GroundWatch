@@ -2,22 +2,22 @@
 
 ## Test Configuration
 - **Test panels**: panel_017, panel_018
-- **Total test windows**: 95,040
-- **Features used**: 28
+- **Total test windows**: 86,400
+- **Features used**: 17
 - **Models**: Isolation Forest (anomaly) + XGBoost (classifier)
 
 ## Overall Performance
-- **Accuracy**: 0.7509 (75.1%)
-- **False-Alarm Rate**: 0.0079 (249/31421 confounders misclassified as subsidence)
+- **Accuracy**: 0.6862 (68.6%)
+- **False-Alarm Rate**: 0.0172 (298/17321 confounders misclassified as subsidence)
 
 ## Per-Class Metrics
 
 | Class | Precision | Recall | F1-Score | Support |
 |-------|-----------|--------|----------|---------|
-| blast_transient | 0.6930 | 0.8641 | 0.7692 | 9708 |
-| normal | 0.8427 | 0.7056 | 0.7681 | 51578 |
-| rain_creep | 0.5737 | 0.6719 | 0.6189 | 21713 |
-| subsidence | 0.8374 | 0.9959 | 0.9098 | 12041 |
+| blast_transient | 0.6850 | 0.8933 | 0.7754 | 8492 |
+| normal | 0.8691 | 0.6398 | 0.7370 | 57059 |
+| rain_creep | 0.1743 | 0.3889 | 0.2407 | 8829 |
+| subsidence | 0.8638 | 0.9785 | 0.9176 | 12020 |
 
 ## Confusion Matrix
 
@@ -27,10 +27,10 @@
 
 | True Class | Mean Score | Std | Median |
 |------------|-----------|-----|--------|
-| blast_transient | 14.0 | 9.8 | 13.4 |
-| normal | 8.3 | 13.1 | 4.5 |
-| rain_creep | 5.9 | 4.1 | 4.7 |
-| subsidence | 88.3 | 6.2 | 88.6 |
+| blast_transient | 18.7 | 8.1 | 19.5 |
+| normal | 7.7 | 9.4 | 4.4 |
+| rain_creep | 7.2 | 8.5 | 4.7 |
+| subsidence | 84.1 | 11.2 | 86.3 |
 
 ## Key Observations
 

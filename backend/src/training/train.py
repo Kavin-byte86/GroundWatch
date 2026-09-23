@@ -163,9 +163,6 @@ def main():
         learning_rate=xgb_cfg["learning_rate"],
         tree_method=xgb_cfg["tree_method"],
         early_stopping_rounds=xgb_cfg.get("early_stopping_rounds", 20),
-        subsample=xgb_cfg.get("subsample", 1.0),
-        colsample_bytree=xgb_cfg.get("colsample_bytree", 1.0),
-        min_child_weight=xgb_cfg.get("min_child_weight", 1),
         random_state=xgb_cfg["random_state"],
     )
 
